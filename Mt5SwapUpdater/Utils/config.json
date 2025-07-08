@@ -1,7 +1,7 @@
 {
     "ServerIp": "185.96.244.114",
     "Port": 443,
-    "Login": "12893028",
+    "Login": 12893028,
     "Password": "!4RpOtFb",
     "CsvPath": "C:\\Swaps\\swaps.csv",
     "LogFile": "C:\\Logs\\swap_update_log.txt"

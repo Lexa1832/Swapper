@@ -1,33 +1,37 @@
-﻿using SwapUpdater.Services;
+﻿using System;
+using SwapUpdater.Services;
 using SwapUpdater.Utils;
-using System;
 
-class Program
+public class Program
 {
-    static void Main(string[] args)
+    static void Main()
     {
-        var server = "127.0.0.1:443";
-        ulong login = 123456; // твой логин
-        var password = "password";
+        string sdkPath = @"C:\MetaTrader5SDK\Libs";
+        var mt5Manager = new Mt5ConnectionManager(sdkPath);
 
-        var mt5 = new Mt5ConnectionManager();
+        string server = "142.91.121.108:443";
+        ulong login = 12893028;
+        string password = "!4RpOtFb";
 
-        if (mt5.Connect(server, login, password, out string error))
+        string csvPath = "test.csv"; // убедись, что файл лежит рядом с .exe
+
+        if (mt5Manager.Connect(server, login, password, out var err))
         {
-            Logger.Info("Подключение успешно.");
+            Console.WriteLine("✅ Подключились!");
 
-            var symbols = mt5.GetAllSymbols();
-            Logger.Info($"Всего символов на сервере: {symbols.Length}");
-            foreach (var symbol in symbols)
-            {
-                Logger.Info($"Символ: {symbol.Symbol()}");
-            }
+            var symbols = mt5Manager.GetAllSymbols();
+            Console.WriteLine($"🔍 Получено символов с сервера: {symbols.Length}");
 
-            mt5.Disconnect();
+            // Передаём именно CIMTManagerAPI, а не обёртку
+            var symbolService = new SymbolServices(mt5Manager.Manager);
+            symbolService.UpdateSwapsBatch(csvPath);
+
+            mt5Manager.Disconnect();
+            Console.WriteLine("🔌 Отключились от сервера.");
         }
         else
         {
-            Logger.Error($"Не удалось подключиться: {error}");
+            Console.WriteLine("❌ Ошибка подключения: " + err);
         }
     }
-}
+ }

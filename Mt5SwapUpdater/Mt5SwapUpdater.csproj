@@ -5,6 +5,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 	<ItemGroup>
 		<Reference Include="MetaQuotes.MT5ManagerAPI64">
@@ -17,5 +18,10 @@
 		</Reference>
 	</ItemGroup>
 
+	<ItemGroup>
+		<None Update="utils\config.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 
 </Project>

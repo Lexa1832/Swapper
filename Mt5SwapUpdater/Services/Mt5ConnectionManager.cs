@@ -1,65 +1,70 @@
-﻿using MetaQuotes.MT5CommonAPI;
+﻿using System;
+using System.IO;
 using MetaQuotes.MT5ManagerAPI;
-using SwapUpdater.Utils;
-using System;
+using MetaQuotes.MT5CommonAPI;
 
 namespace SwapUpdater.Services
 {
     public class Mt5ConnectionManager
     {
-        private CIMTManagerAPI _manager;
+        private CIMTManagerAPI? _manager;
 
-        public CIMTManagerAPI Manager => _manager;
+        public CIMTManagerAPI? Manager => _manager;
 
-        public bool Connect(string server, ulong login, string password, out string errorMessage)
+        private readonly string _sdkPath;
+
+        public Mt5ConnectionManager(string sdkPath)
+        {
+            _sdkPath = sdkPath ?? throw new ArgumentNullException(nameof(sdkPath));
+            var initResult = SMTManagerAPIFactory.Initialize(_sdkPath);
+            if (initResult != MTRetCode.MT_RET_OK)
+                throw new Exception($"Ошибка инициализации фабрики Manager API: {initResult}");
+        }
+
+        public bool Connect(string server, ulong login, string password, out string errorMessage, uint version = 0x1000)
         {
             errorMessage = null;
             try
             {
-                uint version = 0x1000; // Версия API
-                MTRetCode result;
+                Console.WriteLine($"Попытка создания Manager API с версией {version}");
 
-                _manager = SMTManagerAPIFactory.CreateManager(version, "", out result);
+                MTRetCode result;
+                _manager = SMTManagerAPIFactory.CreateManager(version, out result);
 
                 if (result != MTRetCode.MT_RET_OK || _manager == null)
                 {
                     errorMessage = $"Ошибка создания Manager API: {result}";
-                    Logger.Error(errorMessage);
+                    Console.Error.WriteLine(errorMessage);
                     return false;
                 }
 
-                Logger.Info("Попытка подключения к серверу MT5...");
+                Console.WriteLine("Manager API создан успешно.");
 
-                result = _manager.Connect(
-                    server,
-                    login,
-                    password,
-                    "",
-                    CIMTManagerAPI.EnPumpModes.PUMP_MODE_SYMBOLS,  // Правильный режим
-                    3000);
-
+                result = _manager.Connect(server, login, password, "", CIMTManagerAPI.EnPumpModes.PUMP_MODE_FULL, 5000);
                 if (result != MTRetCode.MT_RET_OK)
                 {
                     errorMessage = $"Ошибка подключения: {result}";
-                    Logger.Error(errorMessage);
+                    Console.Error.WriteLine(errorMessage);
                     return false;
                 }
 
-                int symbolCount = Convert.ToInt32(_manager.SymbolTotal());
-                if (symbolCount <= 0)
+                Console.WriteLine("Подключение к серверу прошло успешно.");
+
+                int symbolsCount = Convert.ToInt32(_manager.SymbolTotal());
+                if (symbolsCount <= 0)
                 {
                     errorMessage = "Связь установлена, но символы не получены.";
-                    Logger.Warn(errorMessage);
+                    Console.Error.WriteLine(errorMessage);
                     return false;
                 }
 
-                Logger.Info($"Успешное подключение. Символов на сервере: {symbolCount}");
+                Console.WriteLine($"Успешное подключение. Символов на сервере: {symbolsCount}");
                 return true;
             }
             catch (Exception ex)
             {
                 errorMessage = $"Исключение при подключении: {ex.Message}";
-                Logger.Exception(errorMessage, ex);
+                Console.Error.WriteLine(errorMessage);
                 return false;
             }
         }
@@ -68,17 +73,25 @@ namespace SwapUpdater.Services
         {
             try
             {
-                _manager?.Disconnect();
-                Logger.Info("Отключение от сервера выполнено.");
+                if (_manager != null)
+                {
+                    _manager.Disconnect();
+                    _manager.Dispose();
+                    _manager = null;
+                    Console.WriteLine("Отключение от сервера выполнено.");
+                }
             }
             catch (Exception ex)
             {
-                Logger.Exception("Ошибка при отключении.", ex);
+                Console.Error.WriteLine($"Ошибка при отключении: {ex.Message}");
             }
         }
 
         public CIMTConSymbol[] GetAllSymbols()
         {
+            if (_manager == null)
+                return Array.Empty<CIMTConSymbol>();
+
             int total = Convert.ToInt32(_manager.SymbolTotal());
             if (total <= 0)
                 return Array.Empty<CIMTConSymbol>();
@@ -90,7 +103,7 @@ namespace SwapUpdater.Services
                 var symbol = _manager.SymbolCreate();
                 if (symbol == null)
                 {
-                    Logger.Warn($"SymbolCreate() вернул null для индекса {i}");
+                    Console.Error.WriteLine($"SymbolCreate() вернул null для индекса {i}");
                     continue;
                 }
 
@@ -99,7 +112,7 @@ namespace SwapUpdater.Services
                     symbols[i] = symbol;
                 else
                 {
-                    Logger.Warn($"Ошибка получения символа #{i}: {res}");
+                    Console.Error.WriteLine($"Ошибка получения символа #{i}: {res}");
                     symbol.Release();
                 }
             }

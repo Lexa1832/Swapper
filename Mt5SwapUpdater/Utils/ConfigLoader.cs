@@ -1,12 +1,23 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.IO;
+using System.Text.Json;
+using SwapUpdater.Models;
 
-namespace Mt5SwapUpdater.Utils
+namespace SwapUpdater.Utils
 {
-    internal class ConfigLoader
+    public static class ConfigLoader
     {
+        public static AppConfig Load(string path)
+        {
+            if (!File.Exists(path))
+                throw new FileNotFoundException($"Файл конфигурации не найден: {path}");
+
+            var json = File.ReadAllText(path);
+            var config = JsonSerializer.Deserialize<AppConfig>(json);
+
+            if (config == null)
+                throw new InvalidDataException("Конфигурация не может быть пустой");
+
+            return config;
+        }
     }
 }
