@@ -1,6 +1,5 @@
 ﻿using System;
 using SwapUpdater.Services;
-using SwapUpdater.Utils;
 
 public class Program
 {
@@ -13,17 +12,14 @@ public class Program
         ulong login = 12893028;
         string password = "!4RpOtFb";
 
-        string csvPath = "test.csv"; // убедись, что файл лежит рядом с .exe
+        string csvPath = "test.csv";
 
         if (mt5Manager.Connect(server, login, password, out var err))
         {
             Console.WriteLine("✅ Подключились!");
 
-            var symbols = mt5Manager.GetAllSymbols();
-            Console.WriteLine($"🔍 Получено символов с сервера: {symbols.Length}");
-
-            // Передаём именно CIMTManagerAPI, а не обёртку
-            var symbolService = new SymbolServices(mt5Manager.Manager);
+            // Теперь передаем Admin API в сервис символов
+            var symbolService = new SymbolAdminServices(mt5Manager.Admin);
             symbolService.UpdateSwapsBatch(csvPath);
 
             mt5Manager.Disconnect();
@@ -34,4 +30,4 @@ public class Program
             Console.WriteLine("❌ Ошибка подключения: " + err);
         }
     }
- }
+}

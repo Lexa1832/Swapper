@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 using MetaQuotes.MT5ManagerAPI;
 using MetaQuotes.MT5CommonAPI;
 
@@ -7,9 +6,7 @@ namespace SwapUpdater.Services
 {
     public class Mt5ConnectionManager
     {
-        private CIMTManagerAPI? _manager;
-
-        public CIMTManagerAPI? Manager => _manager;
+        private CIMTAdminAPI _admin;
 
         private readonly string _sdkPath;
 
@@ -18,29 +15,33 @@ namespace SwapUpdater.Services
             _sdkPath = sdkPath ?? throw new ArgumentNullException(nameof(sdkPath));
             var initResult = SMTManagerAPIFactory.Initialize(_sdkPath);
             if (initResult != MTRetCode.MT_RET_OK)
-                throw new Exception($"Ошибка инициализации фабрики Manager API: {initResult}");
+                throw new Exception($"Ошибка инициализации фабрики Admin API: {initResult}");
         }
+
+        // Публичное свойство для доступа к Admin API
+        public CIMTAdminAPI Admin => _admin;
 
         public bool Connect(string server, ulong login, string password, out string errorMessage, uint version = 0x1000)
         {
             errorMessage = null;
             try
             {
-                Console.WriteLine($"Попытка создания Manager API с версией {version}");
+                Console.WriteLine($"Попытка создания Admin API с версией {version}");
 
                 MTRetCode result;
-                _manager = SMTManagerAPIFactory.CreateManager(version, out result);
+                _admin = SMTManagerAPIFactory.CreateAdmin(version, out result);
 
-                if (result != MTRetCode.MT_RET_OK || _manager == null)
+                if (result != MTRetCode.MT_RET_OK || _admin == null)
                 {
-                    errorMessage = $"Ошибка создания Manager API: {result}";
+                    errorMessage = $"Ошибка создания Admin API: {result}";
                     Console.Error.WriteLine(errorMessage);
                     return false;
                 }
 
-                Console.WriteLine("Manager API создан успешно.");
+                Console.WriteLine("Admin API создан успешно.");
 
-                result = _manager.Connect(server, login, password, "", CIMTManagerAPI.EnPumpModes.PUMP_MODE_FULL, 5000);
+                // Передаем 6 параметров, password_cert пустая строка, timeout 5000 мс
+                result = _admin.Connect(server, login, password, "", CIMTAdminAPI.EnPumpModes.PUMP_MODE_FULL, 5000);
                 if (result != MTRetCode.MT_RET_OK)
                 {
                     errorMessage = $"Ошибка подключения: {result}";
@@ -50,7 +51,7 @@ namespace SwapUpdater.Services
 
                 Console.WriteLine("Подключение к серверу прошло успешно.");
 
-                int symbolsCount = Convert.ToInt32(_manager.SymbolTotal());
+                int symbolsCount = Convert.ToInt32(_admin.SymbolTotal());
                 if (symbolsCount <= 0)
                 {
                     errorMessage = "Связь установлена, но символы не получены.";
@@ -73,11 +74,11 @@ namespace SwapUpdater.Services
         {
             try
             {
-                if (_manager != null)
+                if (_admin != null)
                 {
-                    _manager.Disconnect();
-                    _manager.Dispose();
-                    _manager = null;
+                    _admin.Disconnect();
+                    _admin.Dispose();
+                    _admin = null;
                     Console.WriteLine("Отключение от сервера выполнено.");
                 }
             }
@@ -87,37 +88,6 @@ namespace SwapUpdater.Services
             }
         }
 
-        public CIMTConSymbol[] GetAllSymbols()
-        {
-            if (_manager == null)
-                return Array.Empty<CIMTConSymbol>();
-
-            int total = Convert.ToInt32(_manager.SymbolTotal());
-            if (total <= 0)
-                return Array.Empty<CIMTConSymbol>();
-
-            var symbols = new CIMTConSymbol[total];
-
-            for (uint i = 0; i < total; i++)
-            {
-                var symbol = _manager.SymbolCreate();
-                if (symbol == null)
-                {
-                    Console.Error.WriteLine($"SymbolCreate() вернул null для индекса {i}");
-                    continue;
-                }
-
-                var res = _manager.SymbolNext(i, symbol);
-                if (res == MTRetCode.MT_RET_OK)
-                    symbols[i] = symbol;
-                else
-                {
-                    Console.Error.WriteLine($"Ошибка получения символа #{i}: {res}");
-                    symbol.Release();
-                }
-            }
-
-            return symbols;
-        }
+        // Тут можешь добавить методы для работы с _admin (например, получение символов и т.п.)
     }
 }
